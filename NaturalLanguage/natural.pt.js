@@ -15,15 +15,15 @@ PortugueseLanguage.prototype._initialize = function() {
 }
 
 PortugueseLanguage.prototype.cleanPickupLocation = function(field,value,nodes) {
-    return {'field':field, 'value':{'formatted':nodes[1]+': '+nodes[2], 'raw':nodes[2]}};
+    return {'field':field, 'fieldLabel':nodes[1], 'value':{'formatted':nodes[1]+': '+nodes[2], 'raw':nodes[2]}};
 }
 
 PortugueseLanguage.prototype.cleanDropoffLocation = function(field,value,nodes) {
-    return {'field':field, 'value':{'formatted':nodes[1]+': '+nodes[2], 'raw':nodes[2]}};
+    return {'field':field, 'fieldLabel':nodes[1], 'value':{'formatted':nodes[1]+': '+nodes[2], 'raw':nodes[2]}};
 }
 
 PortugueseLanguage.prototype.cleanViaLocation = function(field,value,nodes) {
-    return {'field':field, 'value':{'formatted':nodes[1]+': '+nodes[2], 'raw':nodes[2]}};
+    return {'field':field, 'fieldLabel':nodes[1], 'value':{'formatted':nodes[1]+': '+nodes[2], 'raw':nodes[2]}};
 }
 
 PortugueseLanguage.prototype.cleanPickupTime = function(field,value,nodes) {

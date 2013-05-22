@@ -120,34 +120,167 @@ CommandLine.prototype.registerInput = function(item) {
 
     if (!item.hints) item.hints = [];
     cmdLine.inputs.push(item);
+    var fieldset = item.input.parents('fieldset');
+    var fieldOutput = fieldset.find('.fieldOutput');
+
+    // The focused bit is to set the current piece the user is navigating now. If "input", it means the user is just
+    // editing the input, if other value, it is the element ID. Necessary for the keyboard navigation to delete values
+    if (!item.input.parent().attr('id'))
+        item.input.parent().attr('id','c'+moment().format('DDHHmmssSSS'));
+    item.input.data('focusedBit',item.input.parent().attr('id'));
 
     // Key up event for inputs
     item.input.keyup(function(e){
-        var parsed = cmdLine.languageInterpreter.parseValue($(this).val(),item.fields);
-        item.input.data('parsed',parsed);
+        // Parse input value
+        if (e.keyCode != 38 && e.keyCode != 40) {
+            var parsed = cmdLine.languageInterpreter.parseValue($.trim($(this).val()),item.fields);
+            item.input.data('parsed',parsed);
 
-        // If no field matched, parsing hints
-        if (!parsed) {
-            var matchedHints = [];
-            for (var iHnt=0; iHnt<item.hints.length; iHnt++) {
-                if (item.hints[iHnt].indexOf(item.input.val()) == 0)
-                    matchedHints.push(item.hints[iHnt]);
+            // If no field matched, parsing hints
+            if (!parsed) {
+                var matchedHints = [];
+                for (var iHnt=0; iHnt<item.hints.length; iHnt++) {
+                    if (item.hints[iHnt].indexOf(item.input.val()) == 0)
+                        matchedHints.push(item.hints[iHnt]);
+                }
+                if (matchedHints)
+                    parsed = {hints:matchedHints}
             }
-            if (matchedHints)
-                parsed = {hints:matchedHints}
+            
+            // Callback functions
+            if (item.afterParsed) item.afterParsed(item.input, parsed)
+            else cmdLine.afterParsed(item.input, parsed);
         }
-        
-        if (item.afterParsed) item.afterParsed(item.input, parsed)
-        else cmdLine.afterParsed(item.input, parsed);
     });
     item.input.keydown(function(e){
-        if (e.keyCode == 13) {
+        /* Keyboard navigation */
+
+        // Return or Tab
+        if ((e.keyCode == 13 || e.keyCode == 9)) {
+            // Silence line break
+            if (e.keyCode == 13 || $(this).val() != '') e.preventDefault();
+
+            if (!item.afterFinish)
+                return;
+
+            // If user is navigating a pick list, it returns the pick list value instead
+            //else if (e.keyCode == 38 && fieldOutput.find('ul>li.focused').length) {
+            if (e.keyCode == 13 && fieldOutput.find('ul>li.focused').length) {
+                var current = fieldOutput.find('ul>li.focused');
+                var parsed = item.input.data('parsed');
+
+                // Parsed value
+                if (parsed) {
+                    parsed.value.formatted = (parsed.fieldLabel ? parsed.fieldLabel+': ' : '') + current.text();
+                    parsed.value.object = current.data('object');
+                    item.afterFinish(item.input, parsed);
+                }
+                
+                // Parsed hint
+                else if (current.is('.hint')) {
+                    var hint = current.text();
+                    if (hint.indexOf('{') >= 0)
+                        hint = hint.substr(0,hint.indexOf('{'));
+                    item.input.val(hint);
+                    fieldOutput.empty();
+                }
+            }
+
+            // Event after finish for value concluding
+            else {
+                item.afterFinish(item.input, item.input.data('parsed'));
+            }
+        }
+
+        // Left arrow
+        else if (e.keyCode == 37 && $(this).val() == '') {
+            var currentBit = $('#'+item.input.data('focusedBit'));
+            if (currentBit.prev().length) {
+                var nextBit = $('#'+currentBit.prev().attr('id'));
+                item.input.data('focusedBit',nextBit.attr('id'));
+                fieldset.find('.bit.focused').removeClass('focused');
+                nextBit.addClass('focused');
+            }
+        }
+
+        // Right arrow
+        else if (e.keyCode == 39 && $(this).val() == '') {
+            var currentBit = $('#'+item.input.data('focusedBit'));
+            if (currentBit.next().length) {
+                fieldset.find('.bit.focused').removeClass('focused');
+                if (currentBit.next().attr('id').indexOf('c') == 0) {
+                    item.input.data('focusedBit',currentBit.next().attr('id'));
+                } else {
+                    var nextBit = $('#'+currentBit.next().attr('id'));
+                    item.input.data('focusedBit',nextBit.attr('id'));
+                    nextBit.addClass('focused');
+                }
+            }
+        }
+
+        // Up arrow
+        else if (e.keyCode == 38 && item.input.data('focusedBit').substr(0,1) == 'c' && fieldOutput.find('ul>li').length) {
+            var currentItem = fieldOutput.find('ul>li.focused');
+            if (!currentItem.length) {
+                fieldOutput.find('ul>li:last').addClass('focused');
+            } else if (currentItem.prev().length) {
+                currentItem.prev().addClass('focused');
+                currentItem.removeClass('focused');
+            }
+        }
+
+        // Down arrow
+        else if (e.keyCode == 40 && item.input.data('focusedBit').substr(0,1) == 'c' && fieldOutput.find('ul>li').length) {
+            var currentItem = fieldOutput.find('ul>li.focused');
+            if (!currentItem.length) {
+                fieldOutput.find('ul>li:first').addClass('focused');
+            } else if (currentItem.next().length) {
+                currentItem.next().addClass('focused');
+                currentItem.removeClass('focused');
+            }
+        }
+
+        // Backspace
+        else if (e.keyCode == 8 && $(this).val() == '') {
+            var currentBit = $('#'+item.input.data('focusedBit'));
+            if (item.input.data('focusedBit').substr(0,1) == 'c') {
+                if (currentBit.prev().length)
+                    currentBit.prev().remove();
+            } else {
+                currentBit.remove();
+                item.input.data('focusedBit',item.input.parent().attr('id'));
+            }
+        }
+
+        // Delete
+        else if (e.keyCode == 46 && $(this).val() == '' && item.input.data('focusedBit').substr(0,1) != 'c') {
+            var currentBit = $('#'+item.input.data('focusedBit'));
+            currentBit.remove();
+            item.input.data('focusedBit',item.input.parent().attr('id'));
+        }
+
+        // Any key, with a label focused
+        else if (item.input.data('focusedBit').substr(0,1) != 'c') {
+            // Block typing when any label is focused
             e.preventDefault();
-            if (item.afterFinish) item.afterFinish(item.input, item.input.data('parsed'));
+        }
+
+        // Any key pressed with normal input focused
+        else {
+            item.input.data('focusedBit',item.input.parent().attr('id'));
         }
     });
+    item.input.focus(function(e){
+        // Expand when focused
+        cmdLine.resizeInput($(this));
+
+        // Set the focused bit for that input
+        item.input.data('focusedBit',item.input.parent().attr('id'));
+    });
     item.input.blur(function(e){
+        // Shrink when unfocused
         $(this).parent().find('.fieldOutput').empty();
+        $(this).width(30);
     });
 
     // Resize the input on the registration
@@ -162,7 +295,7 @@ CommandLine.prototype.showHints = function(input, parsed) {
     var ul = $('<ul class="hints"></ul>');
     $.each(parsed.hints, function(idx,hint){
         hint = hint.replace(input.val(), '<b>'+input.val()+'</b>');
-        ul.append('<li>'+hint+'</li>');
+        ul.append('<li class="hint">'+hint+'</li>');
     });
     input.parent().find('.fieldOutput').html(ul);
 }

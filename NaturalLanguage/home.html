@@ -31,6 +31,7 @@
                 resize: none;
                 display: block;
                 height: 18px;
+                overflow: hidden;
             }
             fieldset.richFieldset .bit.label {
                 border: 1px solid silver;
@@ -38,6 +39,13 @@
                 margin: 1px;
                 padding: 2px 4px;
                 height: 18px;
+                max-width: 450px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            fieldset.richFieldset .bit.label.focused {
+                border: 1px solid blue;
             }
             fieldset.richFieldset .fieldOutput ul {
                 margin: 5px;
@@ -46,16 +54,19 @@
             fieldset.richFieldset .fieldOutput ul li {
                 list-style: none;
             }
+            fieldset.richFieldset .fieldOutput ul li.focused {
+                background: yellow;
+            }
         </style>
     </head>
     <body>
         <form id="bookingForm">
             <fieldset rel="firstField" class="richFieldset">
                 <div class="bit inputContainer">
-                    <textarea id="firstField" type="text" placeholder="type here..."></textarea>
+                    <textarea id="firstField" type="text" placeholder="type here..." wrap="off"></textarea>
                     <div id="firstFieldOutput" class="fieldOutput"></div>
                 </div>
-            </div>
+            </fieldset>
         </form>
         <script src="moment.js"></script>
         <script src="natural.js"></script>
@@ -118,7 +129,7 @@
                         if (parsed.field != 'via' && fieldset.find('.label[rel='+parsed.field+']').length) {
                             var label = fieldset.find('.label[rel='+parsed.field+']');
                         } else {
-                            var label = $('<div class="bit label" rel="'+parsed.field+'"></div>');
+                            var label = $('<div id="l'+moment().format('DDHHmmssSSS')+'" class="bit label" rel="'+parsed.field+'"></div>');
                             label.insertBefore(input.parent());
                         }
                         label.text(parsed.value.formatted).data('parsed',parsed);
@@ -126,7 +137,7 @@
                         commandLine.resizeInput(input);
                         input.val('');
                     },
-                    hints:['from {location}','to {location}','via {location}','at {pickup time}','in {time from now}','tomorrow at {pickup time}','monday at {pickup time}','tuesday at {pickup time}','wednesday at {pickup time}','thursday at {pickup time}','friday at {pickup time}','saturday at {pickup time}']
+                    hints:['from {location}','to {location}','via {location}','soon','asap','now','at {pickup time}','in {time from now}','tomorrow at {pickup time}','monday at {pickup time}','tuesday at {pickup time}','wednesday at {pickup time}','thursday at {pickup time}','friday at {pickup time}','saturday at {pickup time}']
                 });
                 commandLine.initialize();
             });
