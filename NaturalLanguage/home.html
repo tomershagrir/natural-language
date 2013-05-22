@@ -1,0 +1,135 @@
+<!doctype html>
+<html>
+    <head>
+        <script src="jquery.js"></script>
+        <style>
+            html {
+                font-family: Helvetica,Arial;
+                font-size: 10pt;
+            }
+            #bookingForm {
+            }
+            fieldset.richFieldset {
+                border: 1px solid silver;
+                margin: 0;
+                padding: 0;
+                width: 500px;
+                overflow: hidden;
+            }
+            fieldset.richFieldset .inputContainer {
+                overflow: hidden;
+            }
+            fieldset.richFieldset .bit {
+                float: left;
+            }
+            fieldset.richFieldset textarea {
+                border: 0;
+                outline: none;
+                padding: 4px;
+                width: 400px;
+                margin: 0;
+                resize: none;
+                display: block;
+                height: 18px;
+            }
+            fieldset.richFieldset .bit.label {
+                border: 1px solid silver;
+                background: #eee;
+                margin: 1px;
+                padding: 2px 4px;
+                height: 18px;
+            }
+            fieldset.richFieldset .fieldOutput ul {
+                margin: 5px;
+                padding: 0;
+            }
+            fieldset.richFieldset .fieldOutput ul li {
+                list-style: none;
+            }
+        </style>
+    </head>
+    <body>
+        <form id="bookingForm">
+            <fieldset rel="firstField" class="richFieldset">
+                <div class="bit inputContainer">
+                    <textarea id="firstField" type="text" placeholder="type here..."></textarea>
+                    <div id="firstFieldOutput" class="fieldOutput"></div>
+                </div>
+            </div>
+        </form>
+        <script src="moment.js"></script>
+        <script src="natural.js"></script>
+        <script src="natural.en.js"></script>
+        <script src="natural.pt.js"></script>
+        <script>
+            var COUNTRY_CODE = 'de';
+            var locationSearchPrevious = null;
+            var locationSearchNext = null;
+            var timerLocationSearch = null;
+            function showLocationSearch(parsed, outputContainer) {
+                if (locationSearchNext == parsed.value.raw) return;
+                if (timerLocationSearch) window.clearTimeout(timerLocationSearch);
+                timerLocationSearch = window.setTimeout(function(){
+                    if (locationSearchPrevious == locationSearchNext) return;
+
+                    var url = 'http://maps.googleapis.com/maps/api/geocode/json?';
+                    url += 'address='+locationSearchNext.replace(/ /g,'+')+'&sensor=false&region='+COUNTRY_CODE;
+                    $.get(url, function(resp){
+                        outputContainer.empty();
+                        if (!resp.results || resp.status != 'OK') return;
+
+                        var ul = $('<ul class="locations"></ul>').appendTo(outputContainer);
+                        $.each(resp.results, function(idx,loc){
+                            var li = $('<li>'+loc.formatted_address+'</li>').appendTo(ul);
+                            li.data('object',loc);
+                        });
+                        console.log(resp); // XXX
+                    });
+                    locationSearchPrevious = locationSearchNext;
+                }, 1000);
+                locationSearchNext = parsed.value.raw;
+            }
+
+            $(document).ready(function(){
+                // Command line controller
+                commandLine = new CommandLine($('#bookingForm'), new EnglishLanguage())
+
+                // Inputs registration
+                commandLine.registerInput({
+                    input:$('#firstField'),
+                    fields:['pickup_location','dropoff_location','pickup_time'],
+                    afterParsed:function(input, parsed) {
+                        if (parsed.value) {
+                            if (['pickup_location','dropoff_location'].indexOf(parsed.field) >= 0) {
+                                showLocationSearch(parsed, $('#firstFieldOutput'));
+                            } else {
+                                $('#firstFieldOutput').html('<ul><li>'+parsed.value.formatted+'</li></ul>');
+                            }
+                        } else if (parsed.hints) {
+                            commandLine.showHints(input, parsed);
+                        } else {
+                            $('#firstFieldOutput').empty();
+                        }
+                    },
+                    afterFinish:function(input, parsed){
+                        if (!parsed) return;
+                        var fieldset = input.parents('fieldset');
+
+                        if (parsed.field != 'via' && fieldset.find('.label[rel='+parsed.field+']').length) {
+                            var label = fieldset.find('.label[rel='+parsed.field+']');
+                        } else {
+                            var label = $('<div class="bit label" rel="'+parsed.field+'"></div>');
+                            label.insertBefore(input.parent());
+                        }
+                        label.text(parsed.value.formatted).data('parsed',parsed);
+
+                        commandLine.resizeInput(input);
+                        input.val('');
+                    },
+                    hints:['from {location}','to {location}','via {location}','at {pickup time}','in {time from now}','tomorrow at {pickup time}','monday at {pickup time}','tuesday at {pickup time}','wednesday at {pickup time}','thursday at {pickup time}','friday at {pickup time}','saturday at {pickup time}']
+                });
+                commandLine.initialize();
+            });
+        </script>
+    </body>
+</html>
