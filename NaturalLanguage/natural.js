@@ -102,6 +102,10 @@ CommandLine = function(form, languageInterpreter){
     this.form = form;
     this.languageInterpreter = languageInterpreter;
     this.inputs = [];
+    this.labelTemplate = '<div id="{id}" class="bit label" rel="{field}">'+
+        '<input type="hidden" name="{field}"/><span class="value"></span>'+
+        '<a href="javascript:void(0)" class="close">X</a>'+
+        '</div>';
 }
 
 CommandLine.prototype.initialize = function() {
@@ -146,14 +150,21 @@ CommandLine.prototype.addLabelToInput = function(inputInfo, parsed) {
 
     var label = fieldset.find('.label[rel='+parsed.field+']')
     if (inputInfo.multipleFields.indexOf(parsed.field) >= 0 || !label.length) {
-        var label = $('<div id="l'+moment().format('DDHHmmssSSS')+'" class="bit label" rel="'+parsed.field+'"><input type="hidden" name="'+parsed.field+'"/><span class="value"></span></div>');
+        var label = $(cmdLine.labelTemplate.replace(/{id}/g,'l'+moment().format('DDHHmmssSSS')).replace(/{field}/g,parsed.field));
         label.insertBefore(input.parent());
         label.click(function(e){
             cmdLine.labelClick(inputInfo, label, e);
         });
+        label.find('.close').click(function(){
+            cmdLine.removeLabelFromInput(inputInfo, $(this).parents('.label').attr('id'));
+        });
     }
     label.find('.value').text(parsed.value.formatted).data('parsed',parsed);
     label.find('input[type=hidden]').val(parsed.value.raw);
+}
+
+CommandLine.prototype.removeLabelFromInput = function(inputInfo, bitId) {
+    inputInfo.input.parents('fieldset').find('#'+bitId).remove();
 }
 
 CommandLine.prototype.afterFinish = function(inputInfo, parsed) {
@@ -311,8 +322,7 @@ CommandLine.prototype.registerInput = function(item) {
 
         // Delete
         else if (e.keyCode == 46 && $(this).val() == '' && item.input.data('focusedBit').substr(0,1) != 'c') {
-            var currentBit = $('#'+item.input.data('focusedBit'));
-            currentBit.remove();
+            cmdLine.removeLabelFromInput(item, item.input.data('focusedBit'));
             item.input.data('focusedBit',item.input.parent().attr('id'));
         }
 
