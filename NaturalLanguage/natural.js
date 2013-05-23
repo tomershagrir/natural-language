@@ -130,8 +130,17 @@ CommandLine.prototype.resizeInput = function(input) {
     container.width(lineWidth - widthLastLine);
 }
 
+CommandLine.prototype.labelClick = function(inputInfo, label, e) {
+    /* Click event for labels. This basically focus the label. */
+    label.parent().find('.focused').removeClass('focused');
+    label.addClass('focused');
+    inputInfo.input.data('focusedBit',label.attr('id'));
+    inputInfo.input.data('clickedLabel',true);
+}
+
 CommandLine.prototype.addLabelToInput = function(inputInfo, parsed) {
     /* Add a label and a hidden input for the given value and respective field, in this input */
+    var cmdLine = this;
     var input = inputInfo.input;
     var fieldset = input.parents('fieldset');
 
@@ -139,6 +148,9 @@ CommandLine.prototype.addLabelToInput = function(inputInfo, parsed) {
     if (inputInfo.multipleFields.indexOf(parsed.field) >= 0 || !label.length) {
         var label = $('<div id="l'+moment().format('DDHHmmssSSS')+'" class="bit label" rel="'+parsed.field+'"><input type="hidden" name="'+parsed.field+'"/><span class="value"></span></div>');
         label.insertBefore(input.parent());
+        label.click(function(e){
+            cmdLine.labelClick(inputInfo, label, e);
+        });
     }
     label.find('.value').text(parsed.value.formatted).data('parsed',parsed);
     label.find('input[type=hidden]').val(parsed.value.raw);
@@ -320,7 +332,11 @@ CommandLine.prototype.registerInput = function(item) {
         cmdLine.resizeInput($(this));
 
         // Set the focused bit for that input
-        item.input.data('focusedBit',item.input.parent().attr('id'));
+        if (!item.input.data('clickedLabel')) {
+            item.input.data('focusedBit',item.input.parent().attr('id'));
+            item.input.parents('fieldset').find('.focused').removeClass('focused');
+        }
+        item.input.data('clickedLabel',false);
     });
     item.input.blur(function(e){
         // Shrink when unfocused
