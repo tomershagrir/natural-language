@@ -147,7 +147,8 @@ CommandLine.prototype.labelClick = function(inputInfo, label, e) {
 
 CommandLine.prototype.labelEdit = function(inputInfo, label, e) {
     inputInfo.input.val(label.data('parsed').typedValue);
-    this.removeLabelFromInput(inputInfo, label.attr('id'));
+    label.addClass('hidden').removeClass('focused');
+    inputInfo.input.data('editingJustStarted',true);
     inputInfo.input.data('focusedBit',inputInfo.input.parent().attr('id'));
 }
 
@@ -237,8 +238,26 @@ CommandLine.prototype.registerInput = function(item) {
     item.input.keydown(function(e){
         /* Keyboard navigation */
 
+        // Return or escape to abandon editing mode - this is important to be in a different "if" clause from the
+        // others, because it needs to clean the flag for any other state
+        if ((e.keyCode == 13 || e.keyCode == 27) && item.input.data('editingJustStarted')) {
+            item.input.val('');
+            item.input.parents('fieldset').find('.label.hidden').removeClass('hidden');
+            e.preventDefault();
+            item.input.data('editingJustStarted',false);
+            return;
+        }
+        item.input.data('editingJustStarted',false);
+        item.input.parents('fieldset').find('.label.hidden').remove();
+
+        // Return to edit current bit
+        if (e.keyCode == 13 && item.input.data('focusedBit').substr(0,1) == 'l') {
+            cmdLine.labelEdit(item, $('#'+item.input.data('focusedBit')));
+            e.preventDefault();
+        }
+        
         // Return or Tab
-        if ((e.keyCode == 13 || e.keyCode == 9)) {
+        else if ((e.keyCode == 13 || e.keyCode == 9)) {
             // Silence line break
             if (e.keyCode == 13 || $(this).val() != '') e.preventDefault();
 
