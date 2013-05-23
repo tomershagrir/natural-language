@@ -74,8 +74,11 @@ BaseLanguage.prototype.parseValue = function(value,fields) {
         for (var iExp=0; iExp<fieldInfo.expressions.length; iExp++) {
             var exp = fieldInfo.expressions[iExp];
             var nodes = exp.exec(value);
-            if (nodes)
-                return fieldInfo.parser(field,value,nodes);
+            if (nodes) {
+                var ret = fieldInfo.parser(field,value,nodes);
+                ret.typedValue = value;
+                return ret;
+            }
         }
     }
 
@@ -142,6 +145,12 @@ CommandLine.prototype.labelClick = function(inputInfo, label, e) {
     inputInfo.input.data('clickedLabel',true);
 }
 
+CommandLine.prototype.labelEdit = function(inputInfo, label, e) {
+    inputInfo.input.val(label.data('parsed').typedValue);
+    this.removeLabelFromInput(inputInfo, label.attr('id'));
+    inputInfo.input.data('focusedBit',inputInfo.input.parent().attr('id'));
+}
+
 CommandLine.prototype.addLabelToInput = function(inputInfo, parsed) {
     /* Add a label and a hidden input for the given value and respective field, in this input */
     var cmdLine = this;
@@ -155,11 +164,15 @@ CommandLine.prototype.addLabelToInput = function(inputInfo, parsed) {
         label.click(function(e){
             cmdLine.labelClick(inputInfo, label, e);
         });
+        label.dblclick(function(e){
+            cmdLine.labelEdit(inputInfo, label, e);
+        });
         label.find('.close').click(function(){
             cmdLine.removeLabelFromInput(inputInfo, $(this).parents('.label').attr('id'));
         });
     }
-    label.find('.value').text(parsed.value.formatted).data('parsed',parsed);
+    label.find('.value').text(parsed.value.formatted);
+    label.data('parsed',parsed);
     label.find('input[type=hidden]').val(parsed.value.raw);
 }
 
