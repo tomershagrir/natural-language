@@ -40,6 +40,8 @@ Function.method('inherits', function (parent) {
 
 BaseLanguage = function() {
     this.fields = {};
+    this.EXP_EMAIL = new RegExp('^[\\w\\-\\+\\_]+@\\w[a-zA-Z_\\.\\-]+\\.[a-zA-Z]{2,3}$');
+    this.EXP_PHONE = new RegExp('^\\+?\\d+$');
 }
 
 BaseLanguage.prototype.initialize = function() {
@@ -80,6 +82,20 @@ BaseLanguage.prototype.parseValue = function(value,fields) {
     return null;
 }
 
+BaseLanguage.prototype.cleanField = function(field,value,nodes) {
+    return {'field':field, 'fieldLabel':nodes[1], 'value':{'formatted':nodes[1]+': '+nodes[2], 'raw':nodes[2]}};
+}
+
+BaseLanguage.prototype.cleanPassengerInfo = function(field,value,nodes) {
+    if (this.EXP_EMAIL.test(value)) {
+        return {'field':'customer_email', 'fieldLabel':'e-mail', 'value':{'formatted':'e-mail: '+$.trim(value), 'raw':$.trim(value)}};
+    } else if (this.EXP_PHONE.test(value)) {
+        return {'field':'customer_phone', 'fieldLabel':'phone', 'value':{'formatted':'phone: '+$.trim(value), 'raw':$.trim(value)}};
+    } else {
+        return {'field':'customer_name', 'fieldLabel':'passenger', 'value':{'formatted':'passenger: '+$.trim(value), 'raw':$.trim(value)}};
+    }
+}
+
 //-- Command line
 
 CommandLine = function(form, languageInterpreter){
@@ -114,11 +130,41 @@ CommandLine.prototype.resizeInput = function(input) {
     container.width(lineWidth - widthLastLine);
 }
 
+CommandLine.prototype.addLabelToInput = function(inputInfo, parsed) {
+    /* Add a label and a hidden input for the given value and respective field, in this input */
+    var input = inputInfo.input;
+    var fieldset = input.parents('fieldset');
+
+    var label = fieldset.find('.label[rel='+parsed.field+']')
+    if (inputInfo.multipleFields.indexOf(parsed.field) >= 0 || !label.length) {
+        var label = $('<div id="l'+moment().format('DDHHmmssSSS')+'" class="bit label" rel="'+parsed.field+'"><input type="hidden" name="'+parsed.field+'"/><span class="value"></span></div>');
+        label.insertBefore(input.parent());
+    }
+    label.find('.value').text(parsed.value.formatted).data('parsed',parsed);
+    label.find('input[type=hidden]').val(parsed.value.raw);
+}
+
+CommandLine.prototype.afterFinish = function(inputInfo, parsed) {
+    if (!parsed) return;
+    var input = inputInfo.input;
+    this.addLabelToInput(inputInfo, parsed);
+    commandLine.resizeInput(input);
+    input.val('');
+}
+
 CommandLine.prototype.registerInput = function(item) {
-    /* parameter "item" must be a dictionary with keys "input", "fields", "afterParsed", "afterFinish" and "hints" */
+    /* parameter "item" must be a dictionary with keys:
+     * - input - jQuery element
+     * - fields - a list with included field names
+     * - multipleFields - a list with field names those support multiple values
+     * - afterParsed - function to call after value is parsed
+     * - afterFinish - function to call after value is validated and finished
+     * - hints - list with text hints to help the user
+     **/
     cmdLine = this;
 
     if (!item.hints) item.hints = [];
+    if (!item.multipleFields) item.multipleFields = [];
     cmdLine.inputs.push(item);
     var fieldset = item.input.parents('fieldset');
     var fieldOutput = fieldset.find('.fieldOutput');
@@ -160,8 +206,7 @@ CommandLine.prototype.registerInput = function(item) {
             // Silence line break
             if (e.keyCode == 13 || $(this).val() != '') e.preventDefault();
 
-            if (!item.afterFinish)
-                return;
+            var afterFinish = item.afterFinish ? item.afterFinish : function(inputInfo, parsed){ cmdLine.afterFinish(inputInfo, parsed); };
 
             // If user is navigating a pick list, it returns the pick list value instead
             //else if (e.keyCode == 38 && fieldOutput.find('ul>li.focused').length) {
@@ -173,7 +218,7 @@ CommandLine.prototype.registerInput = function(item) {
                 if (parsed) {
                     parsed.value.formatted = (parsed.fieldLabel ? parsed.fieldLabel+': ' : '') + current.text();
                     parsed.value.object = current.data('object');
-                    item.afterFinish(item.input, parsed);
+                    afterFinish(item, parsed);
                 }
                 
                 // Parsed hint
@@ -188,7 +233,7 @@ CommandLine.prototype.registerInput = function(item) {
 
             // Event after finish for value concluding
             else {
-                item.afterFinish(item.input, item.input.data('parsed'));
+                afterFinish(item, item.input.data('parsed'));
             }
         }
 
@@ -281,6 +326,10 @@ CommandLine.prototype.registerInput = function(item) {
         // Shrink when unfocused
         $(this).parent().find('.fieldOutput').empty();
         $(this).width(30);
+    });
+    fieldset.click(function(){
+        // Click event to focus input when fieldset is clicked
+        item.input.focus();
     });
 
     // Resize the input on the registration

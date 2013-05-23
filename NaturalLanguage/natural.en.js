@@ -5,26 +5,15 @@ EnglishLanguage.inherits(BaseLanguage);
 
 EnglishLanguage.prototype._initialize = function() {
     var lang = this;
-    this.addField({name:'pickup_location', expressions:[new RegExp('^(from)[ ]+(.+);?')], parser:function(field,value,nodes){ return lang.cleanPickupLocation(field,value,nodes); }});
-    this.addField({name:'dropoff_location', expressions:[new RegExp('^(to)[ ]+(.+);?')], parser:function(field,value,nodes){ return lang.cleanDropoffLocation(field,value,nodes); }});
-    this.addField({name:'via', expressions:[new RegExp('^(via)[ ]+(.+);?')], parser:function(field,value,nodes){ return lang.cleanViaLocation(field,value,nodes); }});
+    this.addField({name:'customer_info', expressions:[new RegExp('^(.*\\w+.*)$')], parser:function(field,value,nodes){ return lang.cleanPassengerInfo(field,value,nodes); }});
+    this.addField({name:'pickup_location', expressions:[new RegExp('^(from)[ ]+(.+);?')], parser:function(field,value,nodes){ return lang.cleanField(field,value,nodes); }});
+    this.addField({name:'dropoff_location', expressions:[new RegExp('^(to)[ ]+(.+);?')], parser:function(field,value,nodes){ return lang.cleanField(field,value,nodes); }});
+    this.addField({name:'via', expressions:[new RegExp('^(via)[ ]+(.+);?')], parser:function(field,value,nodes){ return lang.cleanField(field,value,nodes); }});
     this.addField({name:'pickup_time', expressions:[
             new RegExp('^(now|asap|soon)$'),
             new RegExp('^(in)[ ]+(\\d+)[ ]?(min|hr|minutes|hours);?'),
             new RegExp('^(\\d{1,2}/\\d{1,2}/\\d{4} |\\d{1,2}/\\d{1,2} |today |tomorrow |sunday |sun |monday |mon |tuesday |tue |wednesday |wed |thursday |thu |friday |fri |saturday |sat |)(at |)(\\d{1,2}:?\\d{0,2}(am|pm|));?')
             ], parser:function(field,value,nodes){ return lang.cleanPickupTime(field,value,nodes); }});
-}
-
-EnglishLanguage.prototype.cleanPickupLocation = function(field,value,nodes) {
-    return {'field':field, 'fieldLabel':nodes[1], 'value':{'formatted':nodes[1]+': '+nodes[2], 'raw':nodes[2]}};
-}
-
-EnglishLanguage.prototype.cleanDropoffLocation = function(field,value,nodes) {
-    return {'field':field, 'fieldLabel':nodes[1], 'value':{'formatted':nodes[1]+': '+nodes[2], 'raw':nodes[2]}};
-}
-
-EnglishLanguage.prototype.cleanViaLocation = function(field,value,nodes) {
-    return {'field':field, 'fieldLabel':nodes[1], 'value':{'formatted':nodes[1]+': '+nodes[2], 'raw':nodes[2]}};
 }
 
 EnglishLanguage.prototype.cleanPickupTime = function(field,value,nodes) {

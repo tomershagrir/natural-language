@@ -5,25 +5,26 @@ PortugueseLanguage.inherits(BaseLanguage);
 
 PortugueseLanguage.prototype._initialize = function() {
     var lang = this;
-    this.addField({name:'pickup_location', expressions:[new RegExp('(de)[ ]+(.+);?')], parser:function(field,value,nodes){ return lang.cleanPickupLocation(field,value,nodes); }});
-    this.addField({name:'dropoff_location', expressions:[new RegExp('(para)[ ]+(.+);?')], parser:function(field,value,nodes){ return lang.cleanDropoffLocation(field,value,nodes); }});
-    this.addField({name:'via', expressions:[new RegExp('(to)[ ]+(.+);?')], parser:function(field,value,nodes){ return lang.cleanViaLocation(field,value,nodes); }});
+    this.addField({name:'customer_info', expressions:[new RegExp('^(.*\\w+.*)$')], parser:function(field,value,nodes){ return lang.cleanPTPassengerInfo(field,value,nodes); }});
+    this.addField({name:'pickup_location', expressions:[new RegExp('(de)[ ]+(.+);?')], parser:function(field,value,nodes){ return lang.cleanField(field,value,nodes); }});
+    this.addField({name:'dropoff_location', expressions:[new RegExp('(para)[ ]+(.+);?')], parser:function(field,value,nodes){ return lang.cleanField(field,value,nodes); }});
+    this.addField({name:'via', expressions:[new RegExp('(via)[ ]+(.+);?')], parser:function(field,value,nodes){ return lang.cleanField(field,value,nodes); }});
     this.addField({name:'pickup_time', expressions:[
             new RegExp('(em|daqui)[ ]+(\\d+)[ ]?(min|hr|minutes|hours);?'),
             new RegExp('(\\d{1,2}/\\d{1,2}/\\d{4} |\\d{1,2}/\\d{1,2} |hoje |amanha |domingo |dom |segunda |seg |terca |ter |quarta |qua |quinta |qui |sexta |sex |sabado |sab |)(as |)(.+);?')
             ], parser:function(field,value,nodes){ return lang.cleanPickupTime(field,value,nodes); }});
 }
 
-PortugueseLanguage.prototype.cleanPickupLocation = function(field,value,nodes) {
-    return {'field':field, 'fieldLabel':nodes[1], 'value':{'formatted':nodes[1]+': '+nodes[2], 'raw':nodes[2]}};
-}
-
-PortugueseLanguage.prototype.cleanDropoffLocation = function(field,value,nodes) {
-    return {'field':field, 'fieldLabel':nodes[1], 'value':{'formatted':nodes[1]+': '+nodes[2], 'raw':nodes[2]}};
-}
-
-PortugueseLanguage.prototype.cleanViaLocation = function(field,value,nodes) {
-    return {'field':field, 'fieldLabel':nodes[1], 'value':{'formatted':nodes[1]+': '+nodes[2], 'raw':nodes[2]}};
+BaseLanguage.prototype.cleanPTPassengerInfo = function(field,value,nodes) {
+    var ret = this.cleanPassengerInfo(field,value,nodes);
+    if (ret.field == 'customer_name') {
+        ret.fieldLabel = 'passageiro';
+        ret.replace('passenger: ','passageiro: ');
+    } else if (ret.field == 'customer_phone') {
+        ret.fieldLabel = 'fone';
+        ret.replace('phone: ','fone: ');
+    }
+    return ret;
 }
 
 PortugueseLanguage.prototype.cleanPickupTime = function(field,value,nodes) {

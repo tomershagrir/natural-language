@@ -11,7 +11,7 @@
             }
             fieldset.richFieldset {
                 border: 1px solid silver;
-                margin: 0;
+                margin-bottom: 10px;
                 padding: 0;
                 width: 500px;
                 overflow: hidden;
@@ -63,8 +63,15 @@
         <form id="bookingForm">
             <fieldset rel="firstField" class="richFieldset">
                 <div class="bit inputContainer">
-                    <textarea id="firstField" type="text" placeholder="type here..." wrap="off"></textarea>
+                    <textarea id="firstField" type="text" placeholder="passenger, etc." wrap="off"></textarea>
                     <div id="firstFieldOutput" class="fieldOutput"></div>
+                </div>
+            </fieldset>
+
+            <fieldset rel="secondField" class="richFieldset">
+                <div class="bit inputContainer">
+                    <textarea id="secondField" type="text" placeholder="from, via, to, time..." wrap="off"></textarea>
+                    <div id="secondFieldOutput" class="fieldOutput"></div>
                 </div>
             </fieldset>
         </form>
@@ -108,34 +115,38 @@
                 // Inputs registration
                 commandLine.registerInput({
                     input:$('#firstField'),
-                    fields:['pickup_location','dropoff_location','pickup_time'],
+                    fields:['customer_info'],
                     afterParsed:function(input, parsed) {
                         if (parsed.value) {
-                            if (['pickup_location','dropoff_location'].indexOf(parsed.field) >= 0) {
-                                showLocationSearch(parsed, $('#firstFieldOutput'));
-                            } else {
-                                $('#firstFieldOutput').html('<ul><li>'+parsed.value.formatted+'</li></ul>');
+                            if (['customer_name','customer_phone','customer_email'].indexOf(parsed.field) >= 0) {
+                                //showPassengerSearch(parsed, $('#firstFieldOutput'));
                             }
+                            
+                            $('#firstFieldOutput').html('<ul><li>'+parsed.value.formatted+'</li></ul>');
                         } else if (parsed.hints) {
                             commandLine.showHints(input, parsed);
                         } else {
                             $('#firstFieldOutput').empty();
                         }
                     },
-                    afterFinish:function(input, parsed){
-                        if (!parsed) return;
-                        var fieldset = input.parents('fieldset');
-
-                        if (parsed.field != 'via' && fieldset.find('.label[rel='+parsed.field+']').length) {
-                            var label = fieldset.find('.label[rel='+parsed.field+']');
+                    hints:[]
+                });
+                commandLine.registerInput({
+                    input:$('#secondField'),
+                    fields:['pickup_location','via','dropoff_location','pickup_time'],
+                    multipleFields:['via'],
+                    afterParsed:function(input, parsed) {
+                        if (parsed.value) {
+                            if (['pickup_location','dropoff_location'].indexOf(parsed.field) >= 0) {
+                                showLocationSearch(parsed, $('#secondFieldOutput'));
+                            } else {
+                                $('#secondFieldOutput').html('<ul><li>'+parsed.value.formatted+'</li></ul>');
+                            }
+                        } else if (parsed.hints) {
+                            commandLine.showHints(input, parsed);
                         } else {
-                            var label = $('<div id="l'+moment().format('DDHHmmssSSS')+'" class="bit label" rel="'+parsed.field+'"></div>');
-                            label.insertBefore(input.parent());
+                            $('#secondFieldOutput').empty();
                         }
-                        label.text(parsed.value.formatted).data('parsed',parsed);
-
-                        commandLine.resizeInput(input);
-                        input.val('');
                     },
                     hints:['from {location}','to {location}','via {location}','soon','asap','now','at {pickup time}','in {time from now}','tomorrow at {pickup time}','monday at {pickup time}','tuesday at {pickup time}','wednesday at {pickup time}','thursday at {pickup time}','friday at {pickup time}','saturday at {pickup time}']
                 });
