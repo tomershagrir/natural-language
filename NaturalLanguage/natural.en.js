@@ -1,7 +1,7 @@
 EnglishLanguage = function() {
     this.initialize();
 }
-EnglishLanguage.inherits(BaseLanguage);
+EnglishLanguage.inherits(QuickBookingFormLanguage);
 
 EnglishLanguage.prototype._initialize = function() {
     var lang = this;

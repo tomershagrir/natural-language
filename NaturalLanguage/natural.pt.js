@@ -1,7 +1,7 @@
 PortugueseLanguage = function() {
     this.initialize();
 }
-PortugueseLanguage.inherits(BaseLanguage);
+PortugueseLanguage.inherits(QuickBookingFormLanguage);
 
 PortugueseLanguage.prototype._initialize = function() {
     var lang = this;
@@ -15,7 +15,7 @@ PortugueseLanguage.prototype._initialize = function() {
             ], parser:function(field,value,nodes){ return lang.cleanPickupTime(field,value,nodes); }});
 }
 
-BaseLanguage.prototype.cleanPTPassengerInfo = function(field,value,nodes) {
+PortugueseLanguage.prototype.cleanPTPassengerInfo = function(field,value,nodes) {
     var ret = this.cleanPassengerInfo(field,value,nodes);
     if (ret.field == 'customer_name') {
         ret.fieldLabel = 'passageiro';

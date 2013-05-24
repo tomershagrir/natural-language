@@ -55,11 +55,18 @@ BaseLanguage.prototype.initialize = function() {
         'parse':'H:mm', //'H:mma',
         'formatted':'HH:mm'
     };
-    this._initialize();
+    if (this._initialize)
+        this._initialize();
 }
 
 BaseLanguage.prototype.addField = function(field) {
-    /* parameter "field" must be a dictionary with keys "name", "expressions" and "parser" */
+    /* Adds a field to the fields dictionary
+     *
+     * Parameter "field" must be a dictionary with keys:
+     * - name - field name string
+     * - expressions - list of regular expressions to match the field value
+     * - parser - a function to call for parsing the value and getting in the expected format
+     */
     this.fields[field.name] = field;
 }
 
@@ -89,7 +96,12 @@ BaseLanguage.prototype.cleanField = function(field,value,nodes) {
     return {'field':field, 'fieldLabel':nodes[1], 'value':{'formatted':nodes[1]+': '+nodes[2], 'raw':nodes[2]}};
 }
 
-BaseLanguage.prototype.cleanPassengerInfo = function(field,value,nodes) {
+QuickBookingFormLanguage = function() {
+    this.initialize();
+}
+QuickBookingFormLanguage.inherits(BaseLanguage);
+
+QuickBookingFormLanguage.prototype.cleanPassengerInfo = function(field,value,nodes) {
     if (this.EXP_EMAIL.test(value)) {
         return {'field':'customer_email', 'fieldLabel':'e-mail', 'value':{'formatted':'e-mail: '+$.trim(value), 'raw':$.trim(value)}};
     } else if (this.EXP_PHONE.test(value)) {
@@ -101,7 +113,7 @@ BaseLanguage.prototype.cleanPassengerInfo = function(field,value,nodes) {
 
 //-- Command line
 
-CommandLine = function(form, languageInterpreter){
+NaturalInput = function(form, languageInterpreter){
     this.form = form;
     this.languageInterpreter = languageInterpreter;
     this.inputs = [];
@@ -111,16 +123,16 @@ CommandLine = function(form, languageInterpreter){
         '</div>';
 }
 
-CommandLine.prototype.initialize = function() {
+NaturalInput.prototype.initialize = function() {
 }
 
-CommandLine.prototype.resizeInput = function(input) {
-    var fieldset = input.parents('fieldset');
-    var container = input.parents('.inputContainer');
-    var lineWidth = fieldset.width();
+NaturalInput.prototype.resizeInput = function(input) {
+    /* Resizes the input to fit the client width */
+    var container = input.parents('.richFieldset');
+    var lineWidth = container.width();
 
     // Finds the labels in the last line
-    var labels = fieldset.find('.bit.label');
+    var labels = container.find('.bit.label');
     var lastLine = [];
     var widthLastLine = 0;
     var minimumInput = 100;
@@ -134,10 +146,10 @@ CommandLine.prototype.resizeInput = function(input) {
         }
     }
     input.width(lineWidth - widthLastLine - 12);
-    container.width(lineWidth - widthLastLine);
+    input.parents('.inputWrapper').width(lineWidth - widthLastLine);
 }
 
-CommandLine.prototype.labelClick = function(inputInfo, label, e) {
+NaturalInput.prototype.labelClick = function(inputInfo, label, e) {
     /* Click event for labels. This basically focus the label. */
     label.parent().find('.focused').removeClass('focused');
     label.addClass('focused');
@@ -145,31 +157,32 @@ CommandLine.prototype.labelClick = function(inputInfo, label, e) {
     inputInfo.input.data('clickedLabel',true);
 }
 
-CommandLine.prototype.labelEdit = function(inputInfo, label, e) {
+NaturalInput.prototype.labelEdit = function(inputInfo, label, e) {
+    /* Takes the label's value for editing and hide the label in case of returning without change */
     inputInfo.input.val(label.data('parsed').typedValue);
     label.addClass('hidden').removeClass('focused');
     inputInfo.input.data('editingJustStarted',true);
     inputInfo.input.data('focusedBit',inputInfo.input.parent().attr('id'));
 }
 
-CommandLine.prototype.addLabelToInput = function(inputInfo, parsed) {
+NaturalInput.prototype.addLabelToInput = function(inputInfo, parsed) {
     /* Add a label and a hidden input for the given value and respective field, in this input */
-    var cmdLine = this;
+    var naturalInput = this;
     var input = inputInfo.input;
-    var fieldset = input.parents('fieldset');
+    var container = input.parents('.richFieldset');
 
-    var label = fieldset.find('.label[rel='+parsed.field+']')
+    var label = container.find('.label[rel='+parsed.field+']')
     if (inputInfo.multipleFields.indexOf(parsed.field) >= 0 || !label.length) {
-        var label = $(cmdLine.labelTemplate.replace(/{id}/g,'l'+moment().format('DDHHmmssSSS')).replace(/{field}/g,parsed.field));
+        var label = $(naturalInput.labelTemplate.replace(/{id}/g,'l'+moment().format('DDHHmmssSSS')).replace(/{field}/g,parsed.field));
         label.insertBefore(input.parent());
         label.click(function(e){
-            cmdLine.labelClick(inputInfo, label, e);
+            naturalInput.labelClick(inputInfo, label, e);
         });
         label.dblclick(function(e){
-            cmdLine.labelEdit(inputInfo, label, e);
+            naturalInput.labelEdit(inputInfo, label, e);
         });
         label.find('.close').click(function(){
-            cmdLine.removeLabelFromInput(inputInfo, $(this).parents('.label').attr('id'));
+            naturalInput.removeLabelFromInput(inputInfo, $(this).parents('.label').attr('id'));
         });
     }
     label.find('.value').text(parsed.value.formatted);
@@ -177,19 +190,19 @@ CommandLine.prototype.addLabelToInput = function(inputInfo, parsed) {
     label.find('input[type=hidden]').val(parsed.value.raw);
 }
 
-CommandLine.prototype.removeLabelFromInput = function(inputInfo, bitId) {
-    inputInfo.input.parents('fieldset').find('#'+bitId).remove();
+NaturalInput.prototype.removeLabelFromInput = function(inputInfo, bitId) {
+    inputInfo.input.parents('.richFieldset').find('#'+bitId).remove();
 }
 
-CommandLine.prototype.afterFinish = function(inputInfo, parsed) {
+NaturalInput.prototype.afterFinish = function(inputInfo, parsed) {
     if (!parsed) return;
     var input = inputInfo.input;
     this.addLabelToInput(inputInfo, parsed);
-    commandLine.resizeInput(input);
+    this.resizeInput(input);
     input.val('');
 }
 
-CommandLine.prototype.registerInput = function(item) {
+NaturalInput.prototype.registerInput = function(item) {
     /* parameter "item" must be a dictionary with keys:
      * - input - jQuery element
      * - fields - a list with included field names
@@ -198,13 +211,13 @@ CommandLine.prototype.registerInput = function(item) {
      * - afterFinish - function to call after value is validated and finished
      * - hints - list with text hints to help the user
      **/
-    cmdLine = this;
+    naturalInput = this;
 
     if (!item.hints) item.hints = [];
     if (!item.multipleFields) item.multipleFields = [];
-    cmdLine.inputs.push(item);
-    var fieldset = item.input.parents('fieldset');
-    var fieldOutput = fieldset.find('.fieldOutput');
+    naturalInput.inputs.push(item);
+    var container = item.input.parents('.richFieldset');
+    var fieldOutput = container.find('.fieldOutput');
 
     // The focused bit is to set the current piece the user is navigating now. If "input", it means the user is just
     // editing the input, if other value, it is the element ID. Necessary for the keyboard navigation to delete values
@@ -216,7 +229,7 @@ CommandLine.prototype.registerInput = function(item) {
     item.input.keyup(function(e){
         // Parse input value
         if (e.keyCode != 38 && e.keyCode != 40) {
-            var parsed = cmdLine.languageInterpreter.parseValue($.trim($(this).val()),item.fields);
+            var parsed = naturalInput.languageInterpreter.parseValue($.trim($(this).val()),item.fields);
             item.input.data('parsed',parsed);
 
             // If no field matched, parsing hints
@@ -232,7 +245,7 @@ CommandLine.prototype.registerInput = function(item) {
             
             // Callback functions
             if (item.afterParsed) item.afterParsed(item.input, parsed)
-            else cmdLine.afterParsed(item.input, parsed);
+            else naturalInput.afterParsed(item.input, parsed);
         }
     });
     item.input.keydown(function(e){
@@ -242,17 +255,17 @@ CommandLine.prototype.registerInput = function(item) {
         // others, because it needs to clean the flag for any other state
         if ((e.keyCode == 13 || e.keyCode == 27) && item.input.data('editingJustStarted')) {
             item.input.val('');
-            item.input.parents('fieldset').find('.label.hidden').removeClass('hidden');
+            container.find('.label.hidden').removeClass('hidden');
             e.preventDefault();
             item.input.data('editingJustStarted',false);
             return;
         }
         item.input.data('editingJustStarted',false);
-        item.input.parents('fieldset').find('.label.hidden').remove();
+        container.find('.label.hidden').remove();
 
         // Return to edit current bit
         if (e.keyCode == 13 && item.input.data('focusedBit').substr(0,1) == 'l') {
-            cmdLine.labelEdit(item, $('#'+item.input.data('focusedBit')));
+            naturalInput.labelEdit(item, container.find('#'+item.input.data('focusedBit')));
             e.preventDefault();
         }
         
@@ -261,7 +274,7 @@ CommandLine.prototype.registerInput = function(item) {
             // Silence line break
             if (e.keyCode == 13 || $(this).val() != '') e.preventDefault();
 
-            var afterFinish = item.afterFinish ? item.afterFinish : function(inputInfo, parsed){ cmdLine.afterFinish(inputInfo, parsed); };
+            var afterFinish = item.afterFinish ? item.afterFinish : function(inputInfo, parsed){ naturalInput.afterFinish(inputInfo, parsed); };
 
             // If user is navigating a pick list, it returns the pick list value instead
             //else if (e.keyCode == 38 && fieldOutput.find('ul>li.focused').length) {
@@ -294,24 +307,24 @@ CommandLine.prototype.registerInput = function(item) {
 
         // Left arrow
         else if (e.keyCode == 37 && $(this).val() == '') {
-            var currentBit = $('#'+item.input.data('focusedBit'));
+            var currentBit = container.find('#'+item.input.data('focusedBit'));
             if (currentBit.prev().length) {
-                var nextBit = $('#'+currentBit.prev().attr('id'));
+                var nextBit = container.find('#'+currentBit.prev().attr('id'));
                 item.input.data('focusedBit',nextBit.attr('id'));
-                fieldset.find('.bit.focused').removeClass('focused');
+                container.find('.bit.focused').removeClass('focused');
                 nextBit.addClass('focused');
             }
         }
 
         // Right arrow
         else if (e.keyCode == 39 && $(this).val() == '') {
-            var currentBit = $('#'+item.input.data('focusedBit'));
+            var currentBit = container.find('#'+item.input.data('focusedBit'));
             if (currentBit.next().length) {
-                fieldset.find('.bit.focused').removeClass('focused');
+                container.find('.bit.focused').removeClass('focused');
                 if (currentBit.next().attr('id').indexOf('c') == 0) {
                     item.input.data('focusedBit',currentBit.next().attr('id'));
                 } else {
-                    var nextBit = $('#'+currentBit.next().attr('id'));
+                    var nextBit = container.find('#'+currentBit.next().attr('id'));
                     item.input.data('focusedBit',nextBit.attr('id'));
                     nextBit.addClass('focused');
                 }
@@ -342,7 +355,7 @@ CommandLine.prototype.registerInput = function(item) {
 
         // Backspace
         else if (e.keyCode == 8 && $(this).val() == '') {
-            var currentBit = $('#'+item.input.data('focusedBit'));
+            var currentBit = container.find('#'+item.input.data('focusedBit'));
             if (item.input.data('focusedBit').substr(0,1) == 'c') {
                 if (currentBit.prev().length)
                     currentBit.prev().remove();
@@ -354,7 +367,7 @@ CommandLine.prototype.registerInput = function(item) {
 
         // Delete
         else if (e.keyCode == 46 && $(this).val() == '' && item.input.data('focusedBit').substr(0,1) != 'c') {
-            cmdLine.removeLabelFromInput(item, item.input.data('focusedBit'));
+            naturalInput.removeLabelFromInput(item, item.input.data('focusedBit'));
             item.input.data('focusedBit',item.input.parent().attr('id'));
         }
 
@@ -371,12 +384,12 @@ CommandLine.prototype.registerInput = function(item) {
     });
     item.input.focus(function(e){
         // Expand when focused
-        cmdLine.resizeInput($(this));
+        naturalInput.resizeInput($(this));
 
         // Set the focused bit for that input
         if (!item.input.data('clickedLabel')) {
             item.input.data('focusedBit',item.input.parent().attr('id'));
-            item.input.parents('fieldset').find('.focused').removeClass('focused');
+            container.find('.focused').removeClass('focused');
         }
         item.input.data('clickedLabel',false);
     });
@@ -385,20 +398,20 @@ CommandLine.prototype.registerInput = function(item) {
         $(this).parent().find('.fieldOutput').empty();
         $(this).width(30);
     });
-    fieldset.click(function(){
-        // Click event to focus input when fieldset is clicked
+    container.click(function(){
+        // Click event to focus input when container is clicked
         item.input.focus();
     });
 
     // Resize the input on the registration
-    cmdLine.resizeInput(item.input);
+    naturalInput.resizeInput(item.input);
 }
 
-CommandLine.prototype.afterParsed = function(input, parsed) {
+NaturalInput.prototype.afterParsed = function(input, parsed) {
     console.log(parsed); // XXX
 }
 
-CommandLine.prototype.showHints = function(input, parsed) {
+NaturalInput.prototype.showHints = function(input, parsed) {
     var ul = $('<ul class="hints"></ul>');
     $.each(parsed.hints, function(idx,hint){
         hint = hint.replace(input.val(), '<b>'+input.val()+'</b>');
